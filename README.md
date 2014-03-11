@@ -71,13 +71,16 @@ To avoid minified, concated assets mix with original ones, we'd better place the
 
 After making the modification in our Wordpress theme, now we're starting configure Grunt. The following is a sample of `Gruntfile.js` which I myself used in my theme.
 
+When you do some local modification, run `grunt build` then check the effect in browser. When you want to publish your theme to production environment, run `grunt dist` to minify, concat and replace.
+
+*Currently, there is a minor defect that you have to run `grunt build` everytime you make a change to see the effect, I recommend you make use of other grunt plugin that monitor file changing and run `grunt build` automatically. 
+
 ```javascript
 module.exports = function(grunt) {
 
   grunt.initConfig({
     pkg: grunt.file.readJSON('package.json'),
 
-    //concat js file
     concat: {
       dist: {
         src: ['js/common.js', 'js/grid.js'],
@@ -85,7 +88,6 @@ module.exports = function(grunt) {
       }
     },
 
-    //minify js file
     uglify: {
       dist: {
         files: [{
@@ -98,9 +100,7 @@ module.exports = function(grunt) {
       }
     },
 
-    //minify css file
     cssmin: {
-      //deal with normal css
       dist: {
         files: [{
           expand: true,
@@ -111,16 +111,16 @@ module.exports = function(grunt) {
         }]
       },
 
-      //deal with style.css, actually it should be style-src.css
       specialStyle: {
         options: {
           banner: '/*\n'+
-                      'Theme Name: Twenty Forteen\n'+
-                      'Theme URI: http://wordpress.com/\n'+
-                      'Description: Another Wordpress Theme\n'+
+                      'Theme Name: Canon\n'+
+                      'Theme URI: http://xiaoshelang.ppios.com/\n'+
+                      'Description: 小摄郎 Wordpress 主题\n'+
                       'Author: YangSen\n'+
                       'Author URI: http://undefinedblog.com/\n'+
                       'Version: 1.0\n'+
+                      '私人主题，非开源，保留所有权利。\n'+
                       'Private theme, not open-sourced, all rights reserved.\n'+
                   '*/\n'
         },
@@ -130,7 +130,6 @@ module.exports = function(grunt) {
       }
     },
 
-    //add md5 token to static assets
     filerev: {
         js: {
           src: '.tmp/js/*.js',
@@ -142,10 +141,13 @@ module.exports = function(grunt) {
         }
     },
 
-    //copy files from one folder to another
     copy: {
-      dist: {
+      build: {
         files: [
+        {
+          src: "style-src.css",
+          dest: ".tmp/css/style.css"
+        },
         {
           expand: true,
           src: ["css/*.css"],
@@ -153,38 +155,47 @@ module.exports = function(grunt) {
         },
         {
           expand: true,
-          src: ["js/*.js", "!js/common.js", "!js/grid.js"],
+          src: ["js/*.js"],
           dest: ".tmp"
         }]
       }
     },
 
-    //key point!!! replace static reference in .php files with new filename
     wpreplace: {
+      options: {
+        templatePath: '/wp-content/themes/canon/',
+        jsPath: 'js-dist',
+        cssPath: 'css-dist',
+        concat: []
+      },
+
       dist: {
         src: ['header-src.php', 'footer-src.php'],
         options: {
-          templatePath: '/wp-content/themes/canon/',
-          jsPath: 'js-dist',
-          cssPath: 'css-dist',
           concat: [{
             src: ['common.js', 'grid.js'],
             dest: ['main.js']
           }]
         }
+      },
+
+      build: {
+        src: ['header-src.php', 'footer-src.php']
       }
     },
 
-    //clean temp files
     clean: {
       beforeBuild: ['js-dist',
-                    'css-dist'],
+                    'css-dist',
+                    'js/main.js',
+                    "style*.css",
+                    "!style-src.css"],
       afterBuild: ['.tmp']
     }
 
+
   });
 
-  //load dependencies
   grunt.loadNpmTasks('grunt-contrib-uglify');
   grunt.loadNpmTasks('grunt-contrib-concat');
   grunt.loadNpmTasks('grunt-contrib-cssmin');
@@ -193,21 +204,21 @@ module.exports = function(grunt) {
   grunt.loadNpmTasks('grunt-filerev');
   grunt.loadNpmTasks('grunt-wp-replace');
 
-  //define our task for distribution
   grunt.registerTask('dist', ['clean:beforeBuild',
                                  'concat',
                                  'uglify',
                                  'cssmin',
                                  'filerev',
                                  'clean:afterBuild',
-                                 'wpreplace'
+                                 'wpreplace:dist'
                                  ]);
 
-  //define our task for build
-  grunt.registerTask('build', ['clean',
-                                'copy',
+  grunt.registerTask('build', ['clean:beforeBuild',
+                                'copy:build',
                                 'filerev',
-                                'wpreplace']);
+                                'wpreplace:build',
+                                'clean:afterBuild']);
+
 
 };
 ```
